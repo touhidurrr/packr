@@ -1,0 +1,37 @@
+name: Build & Release
+
+on: [workflow_dispatch]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
+      - name: Build
+        run: |
+          ./gradlew clean assemble
+
+      - name: Set Envs
+        run: |
+          echo "TAG=$(date -u +%s%N)" >> $GITHUB_ENV
+          BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+          COMMIT_SHA="$(git log --format="%H" -n 1)"
+          printf 'BODY=Built From %s\n' "${{ github.event.inputs.owner }}:$BRANCH@$COMMIT_SHA" >> $GITHUB_ENV
+
+      - uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ env.TAG }}
+          body: ${{ env.BODY }}
+          artifacts: Packr/build/libs/*
+          token: ${{ secrets.GITHUB_TOKEN }}
